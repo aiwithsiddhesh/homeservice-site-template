@@ -1,0 +1,39 @@
+{
+  "slug": "green-leaf-landscaping",
+  "businessName": "Green Leaf Landscaping",
+  "trade": "landscaping",
+  "phone": "+19195550136",
+  "phoneDisplay": "(919) 555-0136",
+  "email": "hello@green-leaf-landscaping.example",
+  "city": "Raleigh",
+  "state": "NC",
+  "serviceAreas": ["Raleigh", "Cary", "Apex"],
+  "tagline": "A yard you love coming home to",
+  "heroSubtext": "Thoughtful planting. Tidy lawns. More time to enjoy your outdoors.",
+  "yearsInBusiness": 9,
+  "licenseNumber": "",
+  "hours": "Mon-Fri 8am-5pm; Sat 9am-1pm",
+  "services": [
+    {"title": "Lawn maintenance", "description": "Keep your yard tidy with scheduled mowing, edging, and seasonal care.", "icon": "leaf"},
+    {"title": "Garden bed design", "description": "Choose plantings and bed layouts suited to your space and maintenance goals.", "icon": "home"},
+    {"title": "Mulch and soil care", "description": "Refresh garden beds with neatly installed mulch and practical soil improvements.", "icon": "droplet"},
+    {"title": "Seasonal cleanups", "description": "Clear leaves and overgrowth to prepare your yard for the next season.", "icon": "wrench"},
+    {"title": "Small landscape upgrades", "description": "Bring neglected corners back to life with planting and border improvements.", "icon": "leaf"}
+  ],
+  "reviews": [
+    {"name": "Andrea P.", "text": "The new garden beds made our front walk feel welcoming.", "stars": 5},
+    {"name": "Marcus W.", "text": "They listened to our preference for easy-care plants.", "stars": 5},
+    {"name": "Helen D.", "text": "The team left clean edges and took away the yard debris.", "stars": 5},
+    {"name": "Chris B.", "text": "Helpful ideas and a clear estimate for our spring cleanup.", "stars": 4}
+  ],
+  "faqs": [
+    {"q": "Are landscape estimates free?", "a": "Yes. Call to discuss your yard and arrange a free estimate."},
+    {"q": "Can I book recurring lawn care?", "a": "Recurring visits are available. We agree on the scope and frequency after reviewing your yard."},
+    {"q": "Can you work with my existing plants?", "a": "We review the condition and placement of your plants before recommending changes."},
+    {"q": "What happens if it rains?", "a": "When conditions make work unsuitable, we contact you to arrange another visit."},
+    {"q": "Do I need a large yard?", "a": "No. We also plan improvements for small front yards, garden beds, and compact outdoor spaces."}
+  ],
+  "theme": {"primary": "#24513D", "accent": "#D4DD82", "heroImage": ""},
+  "formAction": "",
+  "siteUrl": ""
+}

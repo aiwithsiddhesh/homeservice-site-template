@@ -1,0 +1,39 @@
+{
+  "slug": "cool-air-hvac",
+  "businessName": "Cool Air HVAC",
+  "trade": "HVAC",
+  "phone": "+14805550128",
+  "phoneDisplay": "(480) 555-0128",
+  "email": "hello@cool-air-hvac.example",
+  "city": "Mesa",
+  "state": "AZ",
+  "serviceAreas": ["Mesa", "Tempe", "Chandler"],
+  "tagline": "Comfort at home starts here",
+  "heroSubtext": "Straightforward diagnostics. Practical options. No-pressure estimates.",
+  "yearsInBusiness": 16,
+  "licenseNumber": "DEMO-ROC-000000",
+  "hours": "Mon-Sat 7am-7pm",
+  "services": [
+    {"title": "AC repair", "description": "Find the cause of weak airflow, warm air, or unexpected system shutdowns.", "icon": "snowflake"},
+    {"title": "System replacement", "description": "Compare equipment options sized for your home and comfort needs.", "icon": "home"},
+    {"title": "Preventive maintenance", "description": "Schedule seasonal checks to keep track of wear and maintenance needs.", "icon": "wrench"},
+    {"title": "Heating service", "description": "Have heating problems inspected before the next cold spell.", "icon": "bolt"},
+    {"title": "Thermostat installation", "description": "Get help selecting and setting up compatible temperature controls.", "icon": "snowflake"}
+  ],
+  "reviews": [
+    {"name": "Denise M.", "text": "The technician explained the diagnosis in plain language.", "stars": 5},
+    {"name": "Alex G.", "text": "We received clear repair and replacement options without pressure.", "stars": 5},
+    {"name": "Priya T.", "text": "The appointment window was accurate and the workspace stayed clean.", "stars": 4},
+    {"name": "Sam H.", "text": "They walked us through the thermostat settings before leaving.", "stars": 5}
+  ],
+  "faqs": [
+    {"q": "Do you provide free estimates?", "a": "Replacement estimates are free. Call to confirm any diagnostic fee before scheduling a repair visit."},
+    {"q": "Can you work on my AC brand?", "a": "Call with the brand and model so we can confirm service availability."},
+    {"q": "How often should I schedule maintenance?", "a": "We can recommend a schedule based on your equipment, usage, and manufacturer guidance."},
+    {"q": "Should I repair or replace my system?", "a": "We explain the condition of your equipment, repair scope, and replacement options so you can decide."},
+    {"q": "Do you offer same-day appointments?", "a": "Same-day openings depend on the schedule. Call for current availability; urgent visits are not guaranteed."}
+  ],
+  "theme": {"primary": "#293E72", "accent": "#F4AE7C", "heroImage": ""},
+  "formAction": "",
+  "siteUrl": ""
+}

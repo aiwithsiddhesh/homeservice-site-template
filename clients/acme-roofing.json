@@ -1,0 +1,38 @@
+{
+  "slug": "acme-roofing",
+  "businessName": "Acme Roofing",
+  "trade": "roofing",
+  "phone": "+12145550142",
+  "phoneDisplay": "(214) 555-0142",
+  "email": "hello@acme-roofing.example",
+  "city": "Dallas",
+  "state": "TX",
+  "serviceAreas": ["Dallas", "Plano", "Frisco"],
+  "tagline": "Roof repairs and replacements done right",
+  "heroSubtext": "Clear estimates. Careful cleanup. A roof ready for the next storm.",
+  "yearsInBusiness": 12,
+  "licenseNumber": "",
+  "hours": "Mon-Sat 7am-6pm",
+  "services": [
+    {"title": "Roof repairs", "description": "Get leaks, damaged shingles, and flashing problems assessed before they spread.", "icon": "wrench"},
+    {"title": "Roof replacements", "description": "Compare practical roofing options with a clear scope and a written estimate.", "icon": "home"},
+    {"title": "Storm damage inspections", "description": "Document visible storm damage and understand your repair options.", "icon": "bolt"},
+    {"title": "Gutter repairs", "description": "Keep rainwater moving away from your roofline and foundation.", "icon": "droplet"}
+  ],
+  "reviews": [
+    {"name": "Maria L.", "text": "They explained the leak clearly and left the driveway clean.", "stars": 5},
+    {"name": "James R.", "text": "The written estimate made it easy to compare our options.", "stars": 5},
+    {"name": "Tanya S.", "text": "The crew arrived in the agreed window and kept us updated.", "stars": 4},
+    {"name": "Robert K.", "text": "Our repair was completed neatly, with photos of the finished work.", "stars": 5}
+  ],
+  "faqs": [
+    {"q": "Do you offer free estimates?", "a": "Yes. Call to arrange a roof assessment and a written estimate."},
+    {"q": "Can you repair a small roof leak?", "a": "We assess the source of the leak and explain whether a targeted repair is suitable."},
+    {"q": "How long does a replacement take?", "a": "Timing depends on roof size, materials, weather, and any hidden damage. We confirm an estimated schedule before work begins."},
+    {"q": "Will you clean up after the job?", "a": "Cleanup is included in the agreed scope. We remove job debris and inspect the work area before leaving."},
+    {"q": "Which areas do you serve?", "a": "We schedule roofing estimates in Dallas, Plano, and Frisco. Call to check availability at your address."}
+  ],
+  "theme": {"primary": "#153E52", "accent": "#F5BE62", "heroImage": ""},
+  "formAction": "",
+  "siteUrl": ""
+}
