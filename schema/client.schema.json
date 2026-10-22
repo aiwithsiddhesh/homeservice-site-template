@@ -26,12 +26,12 @@
     "formAction": {"type": "string", "pattern": "^(?:https://formspree\\.io/f/[A-Za-z0-9]+)?$"},
     "siteUrl": {"type": "string", "maxLength": 500},
     "reviewsAreSamples": {"type": "boolean"},
-    "video": {"type": "object", "additionalProperties": false, "required": ["url", "title"], "properties": {"url": {"type": "string", "minLength": 1, "maxLength": 2048, "description": "HTTPS YouTube watch, Shorts, or youtu.be URL, or a local assets/ MP4 or WebM path; checked by videoSource"}, "title": {"$ref": "#/$defs/text"}, "orientation": {"type": "string", "enum": ["vertical", "horizontal"], "default": "vertical"}}}
+    "video": {"type": "object", "additionalProperties": false, "required": ["url", "title"], "properties": {"url": {"type": "string", "minLength": 1, "maxLength": 2048, "description": "HTTPS YouTube watch, Shorts, or youtu.be URL, or a local assets/ MP4 or WebM path; checked by videoSource"}, "title": {"$ref": "#/$defs/text"}, "orientation": {"type": "string", "enum": ["vertical", "horizontal"], "default": "vertical"}, "poster": {"$ref": "#/$defs/image", "description": "Optional local video poster; ignored for YouTube"}}}
   },
   "$defs": {
     "text": {"type": "string", "minLength": 1, "maxLength": 180, "pattern": "\\S"},
     "paragraph": {"type": "string", "minLength": 1, "maxLength": 800, "pattern": "\\S"},
     "color": {"type": "string", "pattern": "^#[0-9a-fA-F]{6}$"},
-    "image": {"type": "string", "pattern": "^(?:assets/[A-Za-z0-9_/-]+\\.(?:jpg|jpeg|png|webp|avif))?$"}
+    "image": {"type": "string", "description": "use an image path inside assets/ ending in .jpg, .jpeg, .png, .webp or .avif, or an empty string", "pattern": "^(?:assets/[A-Za-z0-9_/-]+\\.(?:jpg|jpeg|png|webp|avif))?$"}
   }
 }

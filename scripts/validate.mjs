@@ -67,10 +67,14 @@ export function videoSource(value) {
 
 export function validate(client, filename) {
   const errors = [];
-  check(client, schema, filename, errors);
+  let source;
   if (client?.video && Object.hasOwn(client.video, 'url')) {
-    try { videoSource(client.video.url); } catch (error) { errors.push(error.message); }
+    try { source = videoSource(client.video.url); } catch (error) { errors.push(error.message); }
   }
+  // YouTube uses its own thumbnail; ignore any unused poster without mutating input.
+  const input = source?.type === 'youtube' ? { ...client, video: { ...client.video } } : client;
+  if (source?.type === 'youtube') delete input.video.poster;
+  check(input, schema, filename, errors);
   if (!errors.length) {
     if (client.slug !== filename.replace(/\.json$/, '')) errors.push(`${filename}.slug: must match the filename`);
     try { openingHours(client.hours); } catch (error) { errors.push(error.message); }

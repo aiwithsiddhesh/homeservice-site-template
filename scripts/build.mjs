@@ -40,6 +40,7 @@ export async function build(selected = '--all') {
     const logo = await assetFile(client.theme.logoImage, 'images/logo', 500_000, '500 KB');
     const source = client.video ? videoSource(client.video.url) : null;
     const video = source?.type === 'file' ? await assetFile(source.path, 'media/promo', 15_000_000, '15 MB') : null;
+    const poster = source?.type === 'file' ? await assetFile(client.video.poster, 'media/poster', 300_000, '300 KB') : null;
     const page = render(client, { hero: hero?.name, logo: logo?.name });
     const files = {
       'index.html': page.html,
@@ -50,7 +51,7 @@ export async function build(selected = '--all') {
     };
     const size = Object.values(files).reduce((total, contents) => total + Buffer.byteLength(contents), 0);
     if (size >= 150_000) throw new Error(`${filename}: generated files exceed the 150 KB budget (${size} bytes). Shorten the content.`);
-    compiled.push({ slug: client.slug, files, assets: [hero, logo, video].filter(Boolean), size });
+    compiled.push({ slug: client.slug, files, assets: [hero, logo, video, poster].filter(Boolean), size });
   }
   // Validate and read every input before replacing any previous output.
   for (const site of compiled) {

@@ -18,12 +18,14 @@ function promoVideo(client) {
   const video = client.video;
   const source = videoSource(video.url);
   const orientation = video.orientation || 'vertical';
+  const media = source.type === 'file' ? `media/promo.${source.mime.split('/')[1]}` : '';
+  const poster = source.type === 'file' && video.poster ? `media/poster.${video.poster.split('.').pop()}` : '';
   const player = source.type === 'youtube'
     ? `<button class="video-facade" type="button" data-youtube-id="${source.id}" data-video-title="${e(video.title)}" aria-label="Play video: ${e(video.title)}">
         <img src="https://i.ytimg.com/vi/${source.id}/hqdefault.jpg" width="480" height="360" loading="lazy" alt="">
         <span class="video-play"><svg viewBox="0 0 24 24" width="64" height="64" aria-hidden="true"><path fill="currentColor" d="m8 4 12 8-12 8Z"/></svg><span>Play video</span></span>
       </button>`
-    : `<video controls playsinline preload="metadata" aria-label="${e(video.title)}"><source src="media/promo.${source.mime.split('/')[1]}" type="${source.mime}">Your browser does not support this video. <a href="media/promo.${source.mime.split('/')[1]}">Download video</a>.</video>`;
+    : `<video controls playsinline preload="metadata" aria-label="${e(video.title)}"${poster ? ` poster="${e(poster)}"` : ''}><source src="${media}${poster ? '' : '#t=0.1'}" type="${source.mime}">Your browser does not support this video. <a href="${media}">Download video</a>.</video>`;
   return `<section class="section wrap promo-video" aria-labelledby="video-title">
       <div class="video-copy"><h2 id="video-title">${e(video.title)}</h2><p>Get to know ${e(client.businessName)} and the work we do for local homes.</p><a class="button" href="tel:${e(client.phone)}">Call ${e(client.phoneDisplay)}</a></div>
       <div class="video-media"><div class="video-frame video-${e(orientation)}">${player}</div>

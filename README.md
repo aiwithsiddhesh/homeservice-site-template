@@ -100,9 +100,10 @@ example URL and title with the client's approved video:
 
 ```json
 "video": {
-  "url": "https://www.youtube.com/watch?v=aqz-KE-bpKQ",
+  "url": "assets/acme/team.mp4",
   "title": "See our team at work",
-  "orientation": "vertical"
+  "orientation": "vertical",
+  "poster": "assets/acme/team-poster.jpg"
 }
 ```
 
@@ -129,6 +130,17 @@ produce a build warning. Video bytes are separate from the 150 KB page-code
 budget. MP4 with H.264 video and AAC audio is a practical compatibility choice;
 verify playback on your target phones and include captions in the supplied clip
 when speech conveys information.
+
+For local files only, the optional `poster` image provides a preview before
+playback, including on iPhone Safari. Export the first frame in CapCut as a
+540x960 JPG under 300 KB for a vertical clip (use matching proportions for
+horizontal footage). Save it inside `assets/` and set `video.poster` to its path.
+JPG, JPEG, PNG, WebP, and AVIF are accepted, using the same filename rules as
+`theme.heroImage`. The build copies it to `media/poster.<ext>` and warns above
+300 KB. Local poster files must exist and cannot escape `assets/` through symlinks.
+Omit the field or use an empty string to add `#t=0.1` to the video source as an
+iOS first-frame fallback; the download link keeps its original URL. YouTube links
+need no poster: the field is ignored entirely, and YouTube keeps its thumbnail.
 
 Orientation defaults to `vertical` (9:16, at most 340px wide). Use `horizontal`
 for 16:9 footage. The plain-text title becomes the heading and accessible player

@@ -147,10 +147,92 @@ test('local video renders controls and a media path; missing video renders nothi
     const { html } = render(client);
     assert.match(html, /video-frame video-horizontal/);
     assert.match(html, /<video controls playsinline preload="metadata" aria-label="Our work">/);
-    assert.ok(html.includes(`src="media/promo.${extension}" type="video/${extension}"`));
-    assert.doesNotMatch(html, /data-youtube-id|<iframe\b/);
+    assert.ok(html.includes(`src="media/promo.${extension}#t=0.1" type="video/${extension}"`));
+    assert.ok(html.includes(`href="media/promo.${extension}">Download video</a>`));
+    assert.doesNotMatch(html, /data-youtube-id|<iframe\b|poster=/);
+    client.video.poster = '';
+    assert.equal(render(client).html, html);
   }
   assert.doesNotMatch(render(copy()).html, /promo-video|<video\b|data-youtube-id/);
+});
+
+test('local posters use image validation and render without a media fragment', () => {
+  for (const videoExtension of ['mp4', 'webm']) {
+    for (const extension of ['jpg', 'jpeg', 'png', 'webp', 'avif']) {
+      const client = copy();
+      client.video = { url: `assets/promo.${videoExtension}`, title: 'Our work', poster: `assets/client/first-frame.${extension}` };
+      assert.doesNotThrow(() => validate(client, 'acme-roofing.json'));
+      const { html } = render(client);
+      assert.ok(html.includes(`<video controls playsinline preload="metadata" aria-label="Our work" poster="media/poster.${extension}">`));
+      assert.ok(html.includes(`src="media/promo.${videoExtension}" type="video/${videoExtension}"`));
+      assert.ok(html.includes(`href="media/promo.${videoExtension}">Download video</a>`));
+      assert.doesNotMatch(html, /#t=0\.1/);
+    }
+  }
+  for (const poster of ['outside.jpg', '../poster.jpg', '/assets/poster.jpg', 'assets/../poster.jpg', 'assets/poster.svg', 'assets/poster.gif', 'assets/poster.mp4', 'https://example.com/poster.jpg']) {
+    const client = copy();
+    client.video = { url: 'assets/promo.mp4', title: 'Our work', poster };
+    assert.throws(() => validate(client, 'acme-roofing.json'), /video\.poster: use an image path inside assets\//, poster);
+  }
+});
+
+test('YouTube ignores poster configuration and preserves its facade', () => {
+  const client = copy();
+  client.video = { url: 'https://youtu.be/AbcD_12-xyz', title: 'Our work' };
+  const original = render(client).html;
+  for (const poster of ['assets/poster.jpg', '../unused.svg', null]) {
+    client.video.poster = poster;
+    assert.doesNotThrow(() => validate(client, 'acme-roofing.json'));
+    assert.equal(client.video.poster, poster);
+    const { html } = render(client);
+    assert.equal(html, original);
+    assert.match(html, /data-youtube-id="AbcD_12-xyz"/);
+    assert.doesNotMatch(html, /poster=|<video\b|<iframe\b/);
+  }
+});
+
+test('build copies posters, warns above 300 KB, and checks local poster path safety', async () => {
+  const fixture = await mkdtemp(path.join(tmpdir(), 'homeservice-poster-'));
+  try {
+    for (const directory of ['scripts', 'schema', 'src']) await cp(path.join(root, directory), path.join(fixture, directory), { recursive: true });
+    await mkdir(path.join(fixture, 'clients'));
+    await mkdir(path.join(fixture, 'assets'));
+    const client = copy();
+    client.video = { url: 'assets/promo.mp4', title: 'Our work', poster: 'assets/first-frame.jpg' };
+    const filename = path.join(fixture, 'clients/acme-roofing.json');
+    await writeFile(filename, JSON.stringify(client));
+    await writeFile(path.join(fixture, 'assets/promo.mp4'), 'test media bytes');
+    const poster = Buffer.alloc(300_001);
+    await writeFile(path.join(fixture, 'assets/first-frame.jpg'), poster);
+    const run = () => spawnSync(process.execPath, ['scripts/build.mjs', 'acme-roofing'], { cwd: fixture, encoding: 'utf8' });
+    let result = run();
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stderr, /assets\/first-frame\.jpg is over 300 KB/);
+    const output = path.join(fixture, 'dist/acme-roofing');
+    assert.deepEqual(await readFile(path.join(output, 'media/poster.jpg')), poster);
+    assert.match(await readFile(path.join(output, 'index.html'), 'utf8'), /poster="media\/poster\.jpg"/);
+
+    await writeFile(path.join(fixture, 'outside.jpg'), 'outside assets');
+    await symlink(path.join(fixture, 'outside.jpg'), path.join(fixture, 'assets/escape.jpg'));
+    client.video.poster = 'assets/escape.jpg';
+    await writeFile(filename, JSON.stringify(client));
+    result = run();
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /assets\/escape\.jpg: asset must remain inside assets\//);
+    assert.deepEqual(await readFile(path.join(output, 'media/poster.jpg')), poster);
+
+    client.video.url = 'https://youtu.be/AbcD_12-xyz';
+    for (const ignoredPoster of ['assets/escape.jpg', 'assets/missing.jpg', '../unused.svg']) {
+      client.video.poster = ignoredPoster;
+      await writeFile(filename, JSON.stringify(client));
+      result = run();
+      assert.equal(result.status, 0, result.stderr);
+      assert.doesNotMatch(result.stderr, /300 KB/);
+      assert.match(await readFile(path.join(output, 'index.html'), 'utf8'), /data-youtube-id="AbcD_12-xyz"/);
+      assert.doesNotMatch(await readFile(path.join(output, 'index.html'), 'utf8'), /poster=/);
+      assert.ok(!(await readdir(output)).includes('media'));
+    }
+  } finally { await rm(fixture, { recursive: true, force: true }); }
 });
 
 test('sample labels cover every reviewer and suppress only sample aggregate ratings', () => {
