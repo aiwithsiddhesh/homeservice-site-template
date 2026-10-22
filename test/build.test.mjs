@@ -72,7 +72,7 @@ test('preview HTML adds an escaped banner and noindex while omitting JSON-LD', (
   assert.ok(whiteContrast('#17242a') >= 4.5);
 });
 
-test('preview builds omit sitemaps and live builds preserve search files across mode changes', async () => {
+test('preview builds allow crawling with noindex headers and live builds preserve search files across mode changes', async () => {
   const fixture = await mkdtemp(path.join(tmpdir(), 'homeservice-preview-'));
   try {
     for (const directory of ['scripts', 'schema', 'src']) await cp(path.join(root, directory), path.join(fixture, directory), { recursive: true });
@@ -84,7 +84,7 @@ test('preview builds omit sitemaps and live builds preserve search files across 
     const liveRobots = 'User-agent: *\nAllow: /\nSitemap: https://acme-roofing.pages.dev/sitemap.xml\n';
     const liveSitemap = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://acme-roofing.pages.dev/</loc></url></urlset>\n';
     let liveHTML;
-    for (const preview of [false, undefined, true, false]) {
+    for (const preview of [false, undefined, true, false, true, undefined]) {
       if (preview === undefined) delete client.preview;
       else client.preview = preview;
       await writeFile(filename, JSON.stringify(client));
@@ -94,14 +94,16 @@ test('preview builds omit sitemaps and live builds preserve search files across 
       const robots = await readFile(path.join(output, 'robots.txt'), 'utf8');
       const files = await readdir(output);
       if (preview) {
-        assert.equal(robots, 'User-agent: *\nDisallow: /\n');
+        assert.equal(robots, 'User-agent: *\nAllow: /\n');
         assert.doesNotMatch(robots, /sitemap/i);
+        assert.equal(await readFile(path.join(output, '_headers'), 'utf8'), '/*\n  X-Robots-Tag: noindex, nofollow\n');
         assert.ok(!files.includes('sitemap.xml'));
         assert.match(html, /<meta name="robots" content="noindex, nofollow">/);
         assert.doesNotMatch(html, /application\/ld\+json/);
         assert.ok(html.includes(`Design preview made for ${client.businessName}. This is not the official website yet.`));
-        assert.ok(result.stdout.includes('Note: acme-roofing.json: preview mode is on; search engines are blocked. Set "preview": false before going live.'));
+        assert.ok(result.stdout.includes('Note: acme-roofing.json: preview mode is on; indexing is disabled and crawling is allowed. Set "preview": false before going live.'));
       } else {
+        assert.ok(!files.includes('_headers'));
         assert.equal(robots, liveRobots);
         assert.equal(await readFile(path.join(output, 'sitemap.xml'), 'utf8'), liveSitemap);
         assert.match(html, /<script type="application\/ld\+json">/);
@@ -455,10 +457,11 @@ test('CLI builds every client within budget and rejects invalid arguments', asyn
     const directory = path.join(root, 'dist', client.slug);
     let bytes = 0;
     const files = ['index.html', 'styles.css', 'script.js', 'robots.txt'];
-    if (!client.preview) files.push('sitemap.xml');
+    files.push(client.preview ? '_headers' : 'sitemap.xml');
     for (const file of files) bytes += (await readFile(path.join(directory, file))).length;
     assert.ok(bytes < 150_000);
     assert.equal((await readdir(directory)).includes('sitemap.xml'), !client.preview);
+    assert.equal((await readdir(directory)).includes('_headers'), Boolean(client.preview));
     const html = await readFile(path.join(directory, 'index.html'), 'utf8');
     assert.ok(html.includes(`href="tel:${client.phone}"`));
     assert.equal((html.match(/<details>/g) || []).length, client.faqs.length);

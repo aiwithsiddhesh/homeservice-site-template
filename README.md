@@ -23,7 +23,7 @@ http://127.0.0.1:3000/. Stop the server with Ctrl+C.
 
 Each build writes `dist/<slug>/index.html`, `styles.css`, `script.js`,
 `robots.txt`, and any referenced images or local videos. Live builds also include
-`sitemap.xml`; preview builds omit it. Deploy the contents of
+`sitemap.xml`; preview builds omit it and include `_headers` instead. Deploy the contents of
 one client directory as the site's root. `dist/` is intentionally gitignored.
 Builds replace that client's output; edit the source JSON, not generated files.
 
@@ -89,10 +89,22 @@ copy, the service mix, and authentic local reviews to make the result distinct.
 
 Keep `preview` and `reviewsAreSamples` set to `true` for every mockup. All three
 sample clients use both settings. Preview mode adds a visible design-preview
-banner above the sticky top bar, a `noindex, nofollow` robots meta tag, and a
-`robots.txt` that disallows all crawling. It omits both `sitemap.xml` and the entire
-LocalBusiness JSON-LD script. A build note reminds you to turn preview mode off.
-Rebuilding removes any sitemap left over from a previous live build.
+banner above the sticky top bar and a `noindex, nofollow` robots meta tag.
+Preview `robots.txt` contains only `User-agent: *` and `Allow: /`, with no Sitemap
+line, so crawlers can read the noindex instructions. The build also writes
+`_headers` into `dist/<slug>/` with this rule for Cloudflare Pages and Netlify:
+
+```text
+/*
+  X-Robots-Tag: noindex, nofollow
+```
+
+Deploy that file with the rest of the client output to apply the header to all
+static paths. Preview builds omit both `sitemap.xml` and the entire LocalBusiness
+JSON-LD script. A build note reminds you to turn preview mode off. Rebuilding
+removes a previous live sitemap, and switching preview off or omitting the flag
+removes `_headers` and restores the live sitemap. The local dev server does not
+interpret `_headers`; verify the response header on the deployed host.
 
 When the client pays and is ready to go live, replace the sample reviews with
 real approved customer reviews, set both flags to `false`, set `siteUrl` to the
@@ -104,10 +116,10 @@ shows the sample-review notice, and omits `aggregateRating` whenever JSON-LD is
 included. False or omitted preserves normal review display and prints a build
 note that reviews are shown as real customer reviews.
 
-Preview mode is a public mockup, not access control. The requested crawl block
-can prevent crawlers from reading the `noindex` tag, so it cannot guarantee that
-a linked URL will never appear in search results. Use hosting password protection
-if a preview must stay out of public search entirely. See
+Preview mode remains publicly accessible to anyone with the URL. Crawling stays
+enabled so search engines can discover the noindex meta tag and response header.
+Search results may take time to update after a previously indexed URL is rebuilt.
+Use hosting password protection if the mockup requires restricted access. See
 [Google's noindex guidance](https://developers.google.com/search/docs/crawling-indexing/block-indexing).
 
 Before deploying, set `siteUrl` to the live address, for example
@@ -252,7 +264,7 @@ The tests cover schema errors, E.164 syntax, injection escaping, hours, contrast
 video URL validation, click-to-load players, local media copying and MIME types,
 sample-review labels and structured data, all-client builds, and the 150 KB budget.
 No browser dependency is
-installed in the project. HTML, CSS, JavaScript, robots, and sitemap bytes combined
+installed in the project. HTML, CSS, JavaScript, robots, and sitemap or `_headers` bytes combined
 must remain below 150,000 bytes before compression, excluding images and video.
 
 For Lighthouse, open the deployed HTTPS site in a clean Chrome profile. Open
