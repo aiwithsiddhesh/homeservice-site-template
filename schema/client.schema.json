@@ -25,6 +25,7 @@
     "theme": {"type": "object", "additionalProperties": false, "required": ["primary", "accent", "heroImage"], "properties": {"primary": {"$ref": "#/$defs/color"}, "accent": {"$ref": "#/$defs/color"}, "heroImage": {"$ref": "#/$defs/image"}, "heroImageAlt": {"$ref": "#/$defs/text"}, "logoImage": {"$ref": "#/$defs/image"}, "logoAlt": {"$ref": "#/$defs/text"}}},
     "formAction": {"type": "string", "pattern": "^(?:https://formspree\\.io/f/[A-Za-z0-9]+)?$"},
     "siteUrl": {"type": "string", "maxLength": 500},
+    "preview": {"type": "boolean", "default": false},
     "reviewsAreSamples": {"type": "boolean"},
     "video": {"type": "object", "additionalProperties": false, "required": ["url", "title"], "properties": {"url": {"type": "string", "minLength": 1, "maxLength": 2048, "description": "HTTPS YouTube watch, Shorts, or youtu.be URL, or a local assets/ MP4 or WebM path; checked by videoSource"}, "title": {"$ref": "#/$defs/text"}, "orientation": {"type": "string", "enum": ["vertical", "horizontal"], "default": "vertical"}, "poster": {"$ref": "#/$defs/image", "description": "Optional local video poster; ignored for YouTube"}}}
   },

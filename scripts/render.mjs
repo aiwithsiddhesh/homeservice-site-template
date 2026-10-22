@@ -64,7 +64,7 @@ export function render(client, images = {}) {
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">${c.preview ? '\n  <meta name="robots" content="noindex, nofollow">' : ''}
   <title>${e(title)}</title>
   <meta name="description" content="${e(description)}">
   <meta name="theme-color" content="${c.theme.primary}">
@@ -79,10 +79,10 @@ export function render(client, images = {}) {
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23${c.theme.primary.slice(1)}' d='M2 11 12 2l10 9v11H2Z'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="styles.css">
   <script src="script.js" defer></script>
-  <script type="application/ld+json">${jsonScript(business)}</script>
+  ${c.preview ? '' : `<script type="application/ld+json">${jsonScript(business)}</script>`}
   <!-- Optional client-approved Google Analytics or Meta Pixel hook. -->
 </head>
-<body>
+<body>${c.preview ? `\n  <aside class="preview-banner" aria-label="Design preview"><p class="wrap">Design preview made for ${e(c.businessName)}. This is not the official website yet.</p></aside>` : ''}
   <a class="skip-link" href="#main">Skip to content</a>
   <header class="topbar">
     <div class="wrap topbar-inner">

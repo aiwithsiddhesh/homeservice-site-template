@@ -29,6 +29,7 @@ test('validation rejects missing fields, malformed phones, and unsafe configurat
 
 test('escaping protects text, attributes, and JSON-LD script boundaries', () => {
   const client = copy();
+  client.preview = false;
   client.businessName = '</script><img src=x onerror=alert(1)>"&';
   validate(client, 'acme-roofing.json');
   const { html } = render(client);
@@ -37,6 +38,83 @@ test('escaping protects text, attributes, and JSON-LD script boundaries', () => 
   const json = html.match(/<script type="application\/ld\+json">(.*?)<\/script>/s)[1];
   assert.equal(JSON.parse(json).name, client.businessName);
   assert.ok(!json.includes('<'));
+});
+
+test('preview requires a boolean and defaults to live HTML when missing', () => {
+  for (const preview of ['true', 'false', 0, 1, null, [], {}]) {
+    assert.throws(() => validate({ ...copy(), preview }, 'acme-roofing.json'), /acme-roofing\.json\.preview: expected boolean/);
+  }
+  const client = copy();
+  delete client.preview;
+  assert.doesNotThrow(() => validate(client, 'acme-roofing.json'));
+  const missing = render(client).html;
+  client.preview = false;
+  assert.doesNotThrow(() => validate(client, 'acme-roofing.json'));
+  assert.equal(render(client).html, missing);
+  assert.doesNotMatch(missing, /noindex|preview-banner|Design preview made for/);
+  assert.match(missing, /<script type="application\/ld\+json">/);
+});
+
+test('preview HTML adds an escaped banner and noindex while omitting JSON-LD', () => {
+  const client = copy();
+  client.preview = true;
+  client.businessName = 'Roof & Home <script>alert(1)</script>';
+  for (const reviewsAreSamples of [true, false]) {
+    client.reviewsAreSamples = reviewsAreSamples;
+    const { html } = render(client);
+    assert.match(html, /<head>[\s\S]*<meta name="robots" content="noindex, nofollow">[\s\S]*<\/head>/);
+    assert.doesNotMatch(html, /application\/ld\+json|"@type":"LocalBusiness"/);
+    assert.match(html, /Design preview made for Roof &amp; Home &lt;script&gt;alert\(1\)&lt;\/script&gt;\. This is not the official website yet\./);
+    assert.doesNotMatch(html, /<script>alert\(1\)<\/script>/);
+    assert.ok(html.indexOf('class="preview-banner"') < html.indexOf('<header class="topbar">'));
+    assert.ok(html.indexOf('</aside>') < html.indexOf('<header class="topbar">'));
+  }
+  assert.ok(whiteContrast('#17242a') >= 4.5);
+});
+
+test('preview builds omit sitemaps and live builds preserve search files across mode changes', async () => {
+  const fixture = await mkdtemp(path.join(tmpdir(), 'homeservice-preview-'));
+  try {
+    for (const directory of ['scripts', 'schema', 'src']) await cp(path.join(root, directory), path.join(fixture, directory), { recursive: true });
+    await mkdir(path.join(fixture, 'clients'));
+    const client = copy();
+    client.siteUrl = 'https://acme-roofing.pages.dev/';
+    const filename = path.join(fixture, 'clients/acme-roofing.json');
+    const output = path.join(fixture, 'dist/acme-roofing');
+    const liveRobots = 'User-agent: *\nAllow: /\nSitemap: https://acme-roofing.pages.dev/sitemap.xml\n';
+    const liveSitemap = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://acme-roofing.pages.dev/</loc></url></urlset>\n';
+    let liveHTML;
+    for (const preview of [false, undefined, true, false]) {
+      if (preview === undefined) delete client.preview;
+      else client.preview = preview;
+      await writeFile(filename, JSON.stringify(client));
+      const result = spawnSync(process.execPath, ['scripts/build.mjs', 'acme-roofing'], { cwd: fixture, encoding: 'utf8' });
+      assert.equal(result.status, 0, result.stderr);
+      const html = await readFile(path.join(output, 'index.html'), 'utf8');
+      const robots = await readFile(path.join(output, 'robots.txt'), 'utf8');
+      const files = await readdir(output);
+      if (preview) {
+        assert.equal(robots, 'User-agent: *\nDisallow: /\n');
+        assert.doesNotMatch(robots, /sitemap/i);
+        assert.ok(!files.includes('sitemap.xml'));
+        assert.match(html, /<meta name="robots" content="noindex, nofollow">/);
+        assert.doesNotMatch(html, /application\/ld\+json/);
+        assert.ok(html.includes(`Design preview made for ${client.businessName}. This is not the official website yet.`));
+        assert.ok(result.stdout.includes('Note: acme-roofing.json: preview mode is on; search engines are blocked. Set "preview": false before going live.'));
+      } else {
+        assert.equal(robots, liveRobots);
+        assert.equal(await readFile(path.join(output, 'sitemap.xml'), 'utf8'), liveSitemap);
+        assert.match(html, /<script type="application\/ld\+json">/);
+        assert.doesNotMatch(html, /noindex|preview-banner/);
+        assert.doesNotMatch(result.stdout, /preview mode is on/);
+        if (liveHTML) assert.equal(html, liveHTML);
+        liveHTML = html;
+      }
+      let bytes = 0;
+      for (const file of files) bytes += (await readFile(path.join(output, file))).length;
+      assert.ok(bytes < 150_000);
+    }
+  } finally { await rm(fixture, { recursive: true, force: true }); }
 });
 
 test('hours and automatic foreground colors remain usable', () => {
@@ -238,6 +316,7 @@ test('build copies posters, warns above 300 KB, and checks local poster path saf
 test('sample labels cover every reviewer and suppress only sample aggregate ratings', () => {
   for (const samples of [true, false, undefined]) {
     const client = copy();
+    client.preview = false;
     if (samples === undefined) delete client.reviewsAreSamples;
     else client.reviewsAreSamples = samples;
     const { html } = render(client);
@@ -375,8 +454,11 @@ test('CLI builds every client within budget and rejects invalid arguments', asyn
     const client = JSON.parse(await readFile(path.join(root, 'clients', name)));
     const directory = path.join(root, 'dist', client.slug);
     let bytes = 0;
-    for (const file of ['index.html', 'styles.css', 'script.js', 'robots.txt', 'sitemap.xml']) bytes += (await readFile(path.join(directory, file))).length;
+    const files = ['index.html', 'styles.css', 'script.js', 'robots.txt'];
+    if (!client.preview) files.push('sitemap.xml');
+    for (const file of files) bytes += (await readFile(path.join(directory, file))).length;
     assert.ok(bytes < 150_000);
+    assert.equal((await readdir(directory)).includes('sitemap.xml'), !client.preview);
     const html = await readFile(path.join(directory, 'index.html'), 'utf8');
     assert.ok(html.includes(`href="tel:${client.phone}"`));
     assert.equal((html.match(/<details>/g) || []).length, client.faqs.length);

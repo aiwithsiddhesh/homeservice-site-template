@@ -22,18 +22,21 @@ Open http://127.0.0.1:3000/acme-roofing/ or the client chooser at
 http://127.0.0.1:3000/. Stop the server with Ctrl+C.
 
 Each build writes `dist/<slug>/index.html`, `styles.css`, `script.js`,
-`robots.txt`, `sitemap.xml`, and any referenced images or local videos. Deploy the contents of
+`robots.txt`, and any referenced images or local videos. Live builds also include
+`sitemap.xml`; preview builds omit it. Deploy the contents of
 one client directory as the site's root. `dist/` is intentionally gitignored.
 Builds replace that client's output; edit the source JSON, not generated files.
 
 ## Make a new client site in 30 minutes
 
 - [ ] Minutes 0-5: duplicate a sample into `clients/<client-slug>.json`. Set
-  `slug` to match the filename without `.json`.
+  `slug` to match the filename without `.json`. Keep `preview` and
+  `reviewsAreSamples` set to `true` for every mockup.
 - [ ] Minutes 5-12: edit the business name, trade, city, service areas, phone,
   email, hours, tagline, services, and FAQs. Check every factual claim.
 - [ ] Minutes 12-18: replace all sample reviews with real approved reviews,
-  set `reviewsAreSamples` to `false`,
+  when the client pays and is ready to go live, set both `preview` and
+  `reviewsAreSamples` to `false`,
   choose brand colors, and add a logo or project photo under `assets/`.
   Set `theme.logoImage` plus `theme.logoAlt`, or `theme.heroImage` plus
   `theme.heroImageAlt`. Empty image paths use the CSS-only design.
@@ -42,7 +45,8 @@ Builds replace that client's output; edit the source JSON, not generated files.
 - [ ] Minutes 22-26: run `npm run build -- <client-slug>` and `npm run dev`.
   Check 360px and desktop widths, all call buttons, FAQs, keyboard focus,
   the form destination, and a real test submission.
-- [ ] Minutes 26-30: deploy that client's output, attach its custom domain,
+- [ ] Minutes 26-30: after setting both flags to `false` and `siteUrl` to the live
+  address, rebuild and redeploy that client's output, attach its custom domain,
   confirm HTTPS, and run Lighthouse against the live site.
 
 The timing assumes approved copy, real reviews, photos, and domain access are
@@ -83,12 +87,28 @@ copy, the service mix, and authentic local reviews to make the result distinct.
 
 ## Mockups, sample reviews and video
 
-Keep `reviewsAreSamples` set to `true` for mockups. All three sample clients use
-this setting: the page labels every review and the hero rating as samples, shows
-a preview notice, and omits `aggregateRating` from JSON-LD. For paying clients,
-replace every sample with a real approved customer review, then set the flag to
-`false`. False or omitted preserves normal review display and prints a build note
-that reviews are shown as real customer reviews.
+Keep `preview` and `reviewsAreSamples` set to `true` for every mockup. All three
+sample clients use both settings. Preview mode adds a visible design-preview
+banner above the sticky top bar, a `noindex, nofollow` robots meta tag, and a
+`robots.txt` that disallows all crawling. It omits both `sitemap.xml` and the entire
+LocalBusiness JSON-LD script. A build note reminds you to turn preview mode off.
+Rebuilding removes any sitemap left over from a previous live build.
+
+When the client pays and is ready to go live, replace the sample reviews with
+real approved customer reviews, set both flags to `false`, set `siteUrl` to the
+live address, then rebuild and redeploy. `preview` defaults to `false` when
+omitted; live HTML and search metadata retain their existing behavior.
+
+`reviewsAreSamples` separately labels every review and the hero rating as samples,
+shows the sample-review notice, and omits `aggregateRating` whenever JSON-LD is
+included. False or omitted preserves normal review display and prints a build
+note that reviews are shown as real customer reviews.
+
+Preview mode is a public mockup, not access control. The requested crawl block
+can prevent crawlers from reading the `noindex` tag, so it cannot guarantee that
+a linked URL will never appear in search results. Use hosting password protection
+if a preview must stay out of public search entirely. See
+[Google's noindex guidance](https://developers.google.com/search/docs/crawling-indexing/block-indexing).
 
 Before deploying, set `siteUrl` to the live address, for example
 `https://<slug>.pages.dev/`, replacing `<slug>` with the actual project name.
@@ -241,7 +261,9 @@ Accessibility, Best Practices, and SEO, then Analyze page load. Run three times
 and inspect the median. Fix actual failed audits and retest after adding photos
 or third-party scripts. For local audits, use
 http://127.0.0.1:3000/acme-roofing/?no-reload to disable the development reload
-script. The target is 95+ in each category, not a guaranteed measured result.
+script. The target for live sites is 95+ in each category, not a guaranteed measured result.
+Run SEO audits with `preview` set to `false`: preview mode intentionally fails
+[Lighthouse's indexing audit](https://developer.chrome.com/docs/lighthouse/seo/is-crawlable).
 
 Also test at 360px and 1440px, with keyboard-only navigation and reduced motion.
 Check a real telephone call and form delivery. Automated scores alone cannot

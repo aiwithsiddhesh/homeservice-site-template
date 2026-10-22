@@ -16,6 +16,7 @@ main:focus { outline: none; }
 .eyebrow { text-transform: uppercase; font-weight: 750; letter-spacing: .12em; font-size: .75rem; margin-bottom: .9rem; }
 .skip-link { position: fixed; left: 1rem; top: -10rem; z-index: 100; padding: .8rem 1rem; background: #fff; color: #111; }
 .skip-link:focus { top: 1rem; }
+.preview-banner { padding-block: .65rem; background: #17242a; color: #fff; font-size: .875rem; line-height: 1.5; text-align: center; overflow-wrap: anywhere; }
 .topbar { position: sticky; top: 0; z-index: 20; background: #fffefb; border-bottom: 1px solid #d8dddb; }
 .topbar-inner { display: flex; align-items: center; justify-content: space-between; gap: .6rem; padding-block: .7rem; }
 .brand { display: flex; align-items: center; gap: .7rem; font-weight: 850; line-height: 1.15; letter-spacing: -.03em; text-decoration: none; min-height: 44px; min-width: 0; font-size: 1rem; }

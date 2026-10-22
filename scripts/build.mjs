@@ -32,6 +32,7 @@ export async function build(selected = '--all') {
     try { client = JSON.parse(await readFile(path.join(root, 'clients', filename), 'utf8')); }
     catch (error) { throw new Error(`${filename}: cannot read valid JSON: ${error.message}`); }
     validate(client, filename);
+    if (client.preview) console.log(`Note: ${filename}: preview mode is on; search engines are blocked. Set "preview": false before going live.`);
     const contrast = whiteContrast(client.theme.primary);
     if (contrast < 4.5) console.warn(`Warning: ${filename}: theme.primary against white is ${contrast.toFixed(2)}:1 (AA needs 4.5:1). Using black text.`);
     if (!client.siteUrl) console.warn(`Warning: ${filename}: siteUrl is empty; replace the example.com canonical before publishing.`);
@@ -46,9 +47,9 @@ export async function build(selected = '--all') {
       'index.html': page.html,
       'styles.css': page.themeCSS + css,
       'script.js': script,
-      'robots.txt': `User-agent: *\nAllow: /\nSitemap: ${page.canonical}sitemap.xml\n`,
-      'sitemap.xml': `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${escapeHTML(page.canonical)}</loc></url></urlset>\n`
+      'robots.txt': client.preview ? 'User-agent: *\nDisallow: /\n' : `User-agent: *\nAllow: /\nSitemap: ${page.canonical}sitemap.xml\n`
     };
+    if (!client.preview) files['sitemap.xml'] = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${escapeHTML(page.canonical)}</loc></url></urlset>\n`;
     const size = Object.values(files).reduce((total, contents) => total + Buffer.byteLength(contents), 0);
     if (size >= 150_000) throw new Error(`${filename}: generated files exceed the 150 KB budget (${size} bytes). Shorten the content.`);
     compiled.push({ slug: client.slug, files, assets: [hero, logo, video, poster].filter(Boolean), size });
