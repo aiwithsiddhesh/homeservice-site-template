@@ -46,9 +46,31 @@ export function openingHours(hours) {
   });
 }
 
+export function videoSource(value) {
+  const invalid = () => new Error('video.url: use an HTTPS YouTube watch, Shorts, or youtu.be URL with an 11-character ID, or an assets/ path ending in .mp4 or .webm');
+  if (typeof value !== 'string' || /[\s\\]/.test(value)) throw invalid();
+  const local = value.match(/^assets\/(?:[A-Za-z0-9_-][A-Za-z0-9._-]*\/)*[A-Za-z0-9_-][A-Za-z0-9._-]*\.(mp4|webm)$/);
+  if (local) return { type: 'file', path: value, mime: `video/${local[1]}` };
+  let url;
+  try { url = new URL(value); } catch { throw invalid(); }
+  if (!/^https:\/\//i.test(value) || url.protocol !== 'https:' || url.username || url.password || url.port) throw invalid();
+  const host = url.hostname.replace(/^(www\.|m\.)/, '');
+  let id;
+  if (host === 'youtu.be') id = url.pathname.match(/^\/([A-Za-z0-9_-]{11})\/?$/)?.[1];
+  if (host === 'youtube.com') {
+    if (url.pathname === '/watch' && url.searchParams.getAll('v').length === 1) id = url.searchParams.get('v');
+    else id = url.pathname.match(/^\/shorts\/([A-Za-z0-9_-]{11})\/?$/)?.[1];
+  }
+  if (!id || !/^[A-Za-z0-9_-]{11}$/.test(id)) throw invalid();
+  return { type: 'youtube', id };
+}
+
 export function validate(client, filename) {
   const errors = [];
   check(client, schema, filename, errors);
+  if (client?.video && Object.hasOwn(client.video, 'url')) {
+    try { videoSource(client.video.url); } catch (error) { errors.push(error.message); }
+  }
   if (!errors.length) {
     if (client.slug !== filename.replace(/\.json$/, '')) errors.push(`${filename}.slug: must match the filename`);
     try { openingHours(client.hours); } catch (error) { errors.push(error.message); }

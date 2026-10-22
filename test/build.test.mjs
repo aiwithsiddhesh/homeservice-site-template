@@ -1,10 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile, readdir } from 'node:fs/promises';
-import { spawnSync } from 'node:child_process';
+import { readFile, readdir, mkdtemp, cp, mkdir, writeFile, rm, symlink } from 'node:fs/promises';
+import { spawn, spawnSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
+import { createServer } from 'node:net';
 import path from 'node:path';
 import { runInNewContext } from 'node:vm';
-import { validate, openingHours, ink, whiteContrast } from '../scripts/validate.mjs';
+import { validate, openingHours, ink, whiteContrast, videoSource } from '../scripts/validate.mjs';
 import { render } from '../scripts/render.mjs';
 import { root } from '../scripts/build.mjs';
 
@@ -60,7 +62,7 @@ test('forms preserve POST, block the honeypot, and encode mailto fields', async 
     const window = { location: { href: '' } };
     const values = { name: 'A & B', phone: '+12145550142', message: 'Roof? #1\nPlease call.' };
     runInNewContext(source, {
-      document: { querySelector: selector => selector === 'form' ? form : status },
+      document: { querySelector: selector => selector === 'form' ? form : status, querySelectorAll: () => [] },
       window,
       FormData: class { get(key) { return values[key]; } }
     });
@@ -71,6 +73,216 @@ test('forms preserve POST, block the honeypot, and encode mailto fields', async 
       assert.equal(target.searchParams.get('body'), `Name: ${values.name}\nPhone: ${values.phone}\n\n${values.message}`);
       assert.match(status.textContent, /send it there/);
     } else assert.equal(window.location.href, '');
+  }
+});
+
+test('videoSource accepts supported HTTPS links and safe local video paths', () => {
+  const id = 'AbcD_12-xyz';
+  for (const prefix of ['', 'www.', 'm.']) {
+    for (const url of [
+      `https://${prefix}youtube.com/watch?v=${id}`,
+      `https://${prefix}youtube.com/watch?feature=shared&v=${id}&t=10`,
+      `https://${prefix}youtube.com/shorts/${id}?si=share`,
+      `https://${prefix}youtu.be/${id}?t=10`
+    ]) assert.deepEqual(videoSource(url), { type: 'youtube', id });
+  }
+  assert.deepEqual(videoSource('assets/promo.mp4'), { type: 'file', path: 'assets/promo.mp4', mime: 'video/mp4' });
+  assert.deepEqual(videoSource('assets/client/crew.v2.webm'), { type: 'file', path: 'assets/client/crew.v2.webm', mime: 'video/webm' });
+});
+
+test('videoSource rejects unsafe hosts, protocols, IDs, and local paths', () => {
+  for (const url of [
+    '', null, 42, 'http://youtube.com/watch?v=AbcD_12-xyz', 'javascript:alert(1)',
+    '//youtube.com/watch?v=AbcD_12-xyz', 'https://vimeo.com/AbcD_12-xyz',
+    'https://youtube.com.evil.example/watch?v=AbcD_12-xyz',
+    'https://evil.example/?v=AbcD_12-xyz', 'https://www.m.youtube.com/watch?v=AbcD_12-xyz',
+    'https://owner@youtube.com/watch?v=AbcD_12-xyz', 'https://youtube.com:444/watch?v=AbcD_12-xyz',
+    'https://youtube.com/watch', 'https://youtube.com/watch?v=short',
+    'https://youtube.com/watch?v=AbcD_12-xyz0', 'https://youtube.com/watch?v=AbcD_12-xy!',
+    'https://youtube.com/watch?v=AbcD_12-xyz&v=AbcD_12-xyz',
+    'https://youtu.be/AbcD_12-xyz/extra', 'https://youtube.com/embed/AbcD_12-xyz',
+    'https://youtube.com/shorts/short', ' https://youtu.be/AbcD_12-xyz',
+    'https://youtu.be/AbcD_12-xyz\n', 'assets/promo.mov', '/assets/promo.mp4',
+    '../assets/promo.mp4', 'assets/../promo.mp4', 'assets/nested/../../promo.mp4',
+    'assets/%2e%2e/promo.mp4', 'assets\\promo.mp4', 'assets/promo.mp4?download=1'
+  ]) assert.throws(() => videoSource(url), /^Error: video\.url:/, String(url));
+});
+
+test('validate reports video fields and requires a boolean sample flag', () => {
+  const client = copy();
+  client.video = { url: 'assets/promo.mp4', title: 'Meet our team' };
+  assert.doesNotThrow(() => validate(client, 'acme-roofing.json'));
+  for (const video of [
+    { title: 'Meet our team' }, { url: 'assets/promo.mp4' },
+    { url: 'assets/promo.mp4', title: ' ' },
+    { url: 'assets/promo.mp4', title: 'Team', orientation: 'square' },
+    { url: 'javascript:alert(1)', title: 'Team' }
+  ]) assert.throws(() => validate({ ...copy(), video }, 'acme-roofing.json'), /video\./);
+  assert.throws(() => validate({ ...copy(), reviewsAreSamples: 'true' }, 'acme-roofing.json'), /reviewsAreSamples: expected boolean/);
+});
+
+test('YouTube renders a facade below the hero, with no iframe on load', () => {
+  const client = copy();
+  client.video = { url: 'https://youtu.be/AbcD_12-xyz', title: 'Meet <our> "team"' };
+  const { html } = render(client);
+  assert.match(html, /<section class="section wrap promo-video"/);
+  assert.match(html, /video-frame video-vertical/);
+  assert.match(html, /<h2 id="video-title">Meet &lt;our&gt; &quot;team&quot;<\/h2>/);
+  assert.match(html, /data-youtube-id="AbcD_12-xyz"/);
+  assert.match(html, /https:\/\/i\.ytimg\.com\/vi\/AbcD_12-xyz\/hqdefault\.jpg/);
+  assert.match(html, /loading="lazy" alt=""/);
+  assert.match(html, /<noscript><p><a href="https:\/\/www\.youtube\.com\/watch\?v=AbcD_12-xyz"/);
+  assert.doesNotMatch(html, /<iframe\b|youtube-nocookie\.com/);
+  const section = html.match(/<section class="section wrap promo-video"[\s\S]*?<\/section>/)[0];
+  assert.ok(section.includes(client.businessName));
+  assert.ok(section.includes(`href="tel:${client.phone}"`));
+  assert.ok(html.indexOf('promo-video') > html.indexOf('class="hero"'));
+  assert.ok(html.indexOf('promo-video') < html.indexOf('aria-labelledby="services-title"'));
+});
+
+test('local video renders controls and a media path; missing video renders nothing', () => {
+  for (const extension of ['mp4', 'webm']) {
+    const client = copy();
+    client.video = { url: `assets/client/clip.${extension}`, title: 'Our work', orientation: 'horizontal' };
+    const { html } = render(client);
+    assert.match(html, /video-frame video-horizontal/);
+    assert.match(html, /<video controls playsinline preload="metadata" aria-label="Our work">/);
+    assert.ok(html.includes(`src="media/promo.${extension}" type="video/${extension}"`));
+    assert.doesNotMatch(html, /data-youtube-id|<iframe\b/);
+  }
+  assert.doesNotMatch(render(copy()).html, /promo-video|<video\b|data-youtube-id/);
+});
+
+test('sample labels cover every reviewer and suppress only sample aggregate ratings', () => {
+  for (const samples of [true, false, undefined]) {
+    const client = copy();
+    if (samples === undefined) delete client.reviewsAreSamples;
+    else client.reviewsAreSamples = samples;
+    const { html } = render(client);
+    const data = JSON.parse(html.match(/<script type="application\/ld\+json">(.*?)<\/script>/s)[1]);
+    const captions = [...html.matchAll(/<figcaption>(.*?)<\/figcaption>/g)];
+    assert.equal(captions.length, client.reviews.length);
+    for (const [, caption] of captions) assert.equal(caption.includes('<span class="sample-tag">Sample</span>'), samples === true);
+    assert.equal(html.includes('Sample reviews for this preview. Your real customer reviews will replace them.'), samples === true);
+    assert.equal(html.includes('4.75 out of 5 from 4 sample reviews'), samples === true);
+    assert.equal(html.includes('<span>Sample rating</span>'), samples === true);
+    assert.equal(Object.hasOwn(data, 'aggregateRating'), samples !== true);
+    if (!samples) {
+      assert.match(html, /4.75 out of 5 from 4 reviews/);
+      assert.match(html, /<span>Customer rating<\/span>/);
+      assert.equal(data.aggregateRating.ratingValue, 4.75);
+    }
+  }
+});
+
+test('YouTube iframe is created only on click and failed thumbnails are removed', async () => {
+  const script = await readFile(path.join(root, 'src/script.js'), 'utf8');
+  for (const cachedFailure of [false, true]) {
+    const handlers = {};
+    const created = [];
+    let removed = false;
+    let replacement;
+    let focused = false;
+    const thumbnail = {
+      complete: cachedFailure, naturalWidth: 0,
+      addEventListener: (event, callback) => { handlers[event] = callback; },
+      remove: () => { removed = true; }
+    };
+    const button = {
+      dataset: { youtubeId: 'AbcD_12-xyz', videoTitle: 'Our team' },
+      querySelector: () => thumbnail,
+      addEventListener: (event, callback, options) => { handlers[event] = callback; assert.equal(options.once, true); },
+      replaceWith: element => { replacement = element; }
+    };
+    runInNewContext(script, {
+      document: {
+        querySelector: () => null,
+        querySelectorAll: () => [button],
+        createElement: tag => { const element = { tag, focus: () => { focused = true; } }; created.push(element); return element; }
+      }
+    });
+    assert.equal(created.length, 0);
+    assert.equal(replacement, undefined);
+    assert.equal(removed, cachedFailure);
+    handlers.error();
+    assert.equal(removed, true);
+    handlers.click();
+    assert.equal(created.length, 1);
+    assert.equal(replacement.tag, 'iframe');
+    assert.equal(replacement.src, 'https://www.youtube-nocookie.com/embed/AbcD_12-xyz?autoplay=1&playsinline=1&rel=0');
+    assert.equal(replacement.title, 'Our team');
+    assert.equal(replacement.allowFullscreen, true);
+    assert.equal(focused, true);
+  }
+});
+
+test('build copies local media, warns on large files, and rejects escaped symlinks', async () => {
+  const fixture = await mkdtemp(path.join(tmpdir(), 'homeservice-video-'));
+  try {
+    for (const directory of ['scripts', 'schema', 'src']) await cp(path.join(root, directory), path.join(fixture, directory), { recursive: true });
+    await mkdir(path.join(fixture, 'clients'));
+    await mkdir(path.join(fixture, 'assets'));
+    const client = copy();
+    client.video = { url: 'assets/promo.mp4', title: 'Our team' };
+    client.reviewsAreSamples = false;
+    const filename = path.join(fixture, 'clients/acme-roofing.json');
+    await writeFile(filename, JSON.stringify(client));
+    const bytes = Buffer.alloc(15_000_001);
+    await writeFile(path.join(fixture, 'assets/promo.mp4'), bytes);
+    const run = () => spawnSync(process.execPath, ['scripts/build.mjs', 'acme-roofing'], { cwd: fixture, encoding: 'utf8' });
+    let result = run();
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stderr, /over 15 MB/);
+    assert.match(result.stdout, /reviews are shown as real customer reviews/);
+    assert.deepEqual(await readFile(path.join(fixture, 'dist/acme-roofing/media/promo.mp4')), bytes);
+    delete client.reviewsAreSamples;
+    await writeFile(filename, JSON.stringify(client));
+    result = run();
+    assert.match(result.stdout, /reviews are shown as real customer reviews/);
+    await writeFile(path.join(fixture, 'outside.mp4'), 'outside assets');
+    await symlink(path.join(fixture, 'outside.mp4'), path.join(fixture, 'assets/escape.mp4'));
+    client.video.url = 'assets/escape.mp4';
+    await writeFile(filename, JSON.stringify(client));
+    result = run();
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /asset must remain inside assets/);
+    assert.deepEqual(await readFile(path.join(fixture, 'dist/acme-roofing/media/promo.mp4')), bytes);
+  } finally { await rm(fixture, { recursive: true, force: true }); }
+});
+
+test('dev server serves MP4 and WebM using video MIME types', async () => {
+  const fixture = await mkdtemp(path.join(tmpdir(), 'homeservice-dev-'));
+  let child;
+  try {
+    for (const directory of ['scripts', 'schema', 'src']) await cp(path.join(root, directory), path.join(fixture, directory), { recursive: true });
+    await mkdir(path.join(fixture, 'clients'));
+    await mkdir(path.join(fixture, 'assets'));
+    for (const extension of ['mp4', 'webm']) {
+      const client = copy(); client.slug = `video-${extension}`;
+      client.video = { url: `assets/promo.${extension}`, title: 'Our team' };
+      await writeFile(path.join(fixture, `clients/${client.slug}.json`), JSON.stringify(client));
+      await writeFile(path.join(fixture, `assets/promo.${extension}`), 'test media bytes');
+    }
+    const reservation = createServer();
+    await new Promise(resolve => reservation.listen(0, '127.0.0.1', resolve));
+    const port = reservation.address().port;
+    await new Promise(resolve => reservation.close(resolve));
+    child = spawn(process.execPath, ['scripts/dev.mjs'], { cwd: fixture, env: { ...process.env, PORT: String(port) }, stdio: ['ignore', 'pipe', 'pipe'] });
+    await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('Dev server did not start')), 10_000);
+      child.once('error', error => { clearTimeout(timer); reject(error); });
+      child.once('exit', code => { clearTimeout(timer); reject(new Error(`Dev server exited: ${code}`)); });
+      child.stdout.on('data', data => { if (data.toString().includes('Preview:')) { clearTimeout(timer); resolve(); } });
+    });
+    for (const extension of ['mp4', 'webm']) {
+      const response = await fetch(`http://127.0.0.1:${port}/video-${extension}/media/promo.${extension}`);
+      assert.equal(response.status, 200);
+      assert.equal(response.headers.get('content-type'), `video/${extension}`);
+      assert.equal(await response.text(), 'test media bytes');
+    }
+  } finally {
+    if (child && child.exitCode === null) await new Promise(resolve => { child.once('exit', resolve); child.kill(); });
+    await rm(fixture, { recursive: true, force: true });
   }
 });
 

@@ -20,6 +20,7 @@
     {"title": "Heating service", "description": "Have heating problems inspected before the next cold spell.", "icon": "bolt"},
     {"title": "Thermostat installation", "description": "Get help selecting and setting up compatible temperature controls.", "icon": "snowflake"}
   ],
+  "reviewsAreSamples": true,
   "reviews": [
     {"name": "Denise M.", "text": "The technician explained the diagnosis in plain language.", "stars": 5},
     {"name": "Alex G.", "text": "We received clear repair and replacement options without pressure.", "stars": 5},

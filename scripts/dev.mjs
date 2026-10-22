@@ -9,7 +9,7 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('PORT m
 let slugs = await build();
 const dist = await realpath(path.join(root, 'dist'));
 const streams = new Set();
-const mime = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.xml': 'application/xml', '.txt': 'text/plain', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.avif': 'image/avif' };
+const mime = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.xml': 'application/xml', '.txt': 'text/plain', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.avif': 'image/avif', '.mp4': 'video/mp4', '.webm': 'video/webm' };
 const reload = `<script>const events=new EventSource('/__events');events.onmessage=()=>location.reload();</script>`;
 const inside = filename => { const relative = path.relative(dist, filename); return !relative.startsWith('..') && !path.isAbsolute(relative); };
 

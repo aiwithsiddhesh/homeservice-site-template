@@ -1,7 +1,7 @@
 # Home Service Site Template
 
 A call-first, one-page static website generator. Customize one JSON file per
-client. No frameworks, npm dependencies, web fonts, tracking, or cookies.
+client. No frameworks, npm dependencies, web fonts, tracking, or cookies by default.
 Node 18+ is supported; use a currently supported Node LTS for new deployments.
 
 All three examples are fictional demonstrations. Replace their phone numbers,
@@ -22,7 +22,7 @@ Open http://127.0.0.1:3000/acme-roofing/ or the client chooser at
 http://127.0.0.1:3000/. Stop the server with Ctrl+C.
 
 Each build writes `dist/<slug>/index.html`, `styles.css`, `script.js`,
-`robots.txt`, `sitemap.xml`, and any referenced images. Deploy the contents of
+`robots.txt`, `sitemap.xml`, and any referenced images or local videos. Deploy the contents of
 one client directory as the site's root. `dist/` is intentionally gitignored.
 Builds replace that client's output; edit the source JSON, not generated files.
 
@@ -33,6 +33,7 @@ Builds replace that client's output; edit the source JSON, not generated files.
 - [ ] Minutes 5-12: edit the business name, trade, city, service areas, phone,
   email, hours, tagline, services, and FAQs. Check every factual claim.
 - [ ] Minutes 12-18: replace all sample reviews with real approved reviews,
+  set `reviewsAreSamples` to `false`,
   choose brand colors, and add a logo or project photo under `assets/`.
   Set `theme.logoImage` plus `theme.logoAlt`, or `theme.heroImage` plus
   `theme.heroImageAlt`. Empty image paths use the CSS-only design.
@@ -79,6 +80,60 @@ and image alt text. It is deliberately not a general-purpose JSON Schema engine.
 
 For each new client, change colors, project photos/logo, headline and benefit
 copy, the service mix, and authentic local reviews to make the result distinct.
+
+## Mockups, sample reviews and video
+
+Keep `reviewsAreSamples` set to `true` for mockups. All three sample clients use
+this setting: the page labels every review and the hero rating as samples, shows
+a preview notice, and omits `aggregateRating` from JSON-LD. For paying clients,
+replace every sample with a real approved customer review, then set the flag to
+`false`. False or omitted preserves normal review display and prints a build note
+that reviews are shown as real customer reviews.
+
+Before deploying, set `siteUrl` to the live address, for example
+`https://<slug>.pages.dev/`, replacing `<slug>` with the actual project name.
+Rebuild when moving to a custom domain. This updates the canonical, sitemap,
+and social metadata.
+
+Add this optional object at the top level of a client JSON file, replacing the
+example URL and title with the client's approved video:
+
+```json
+"video": {
+  "url": "https://www.youtube.com/watch?v=aqz-KE-bpKQ",
+  "title": "See our team at work",
+  "orientation": "vertical"
+}
+```
+
+Accepted YouTube formats are `https://youtube.com/watch?v=ID`,
+`https://youtu.be/ID`, and `https://youtube.com/shorts/ID`. The `www.` and `m.`
+host prefixes are also accepted. IDs must contain exactly 11 letters, digits,
+underscores, or hyphens. HTTPS is required; other hosts and embed URLs are rejected.
+Extra query parameters are accepted, but playback uses only the validated ID.
+
+The YouTube player loads only after tapping Play video. Before that, the page
+shows a button and a lazy-loaded thumbnail from YouTube's image server; that
+thumbnail still makes a third-party image request. Playback uses
+`youtube-nocookie.com`. Visitors without JavaScript get a link to watch on YouTube.
+If the thumbnail cannot load, the play button remains available.
+
+For local video, use a path such as `assets/acme/team.mp4` or
+`assets/acme/team.webm`. Use letters, digits, underscores, hyphens, or dots in
+names; do not use spaces, traversal segments, or paths outside `assets/`.
+The file must exist and is copied unchanged to `media/promo.mp4` or
+`media/promo.webm` in the client output. MP4 and WebM are the only accepted
+extensions. Native controls appear, inline playback is enabled, and preload is
+limited to metadata. Compress clips for mobile and aim below 15 MB; larger files
+produce a build warning. Video bytes are separate from the 150 KB page-code
+budget. MP4 with H.264 video and AAC audio is a practical compatibility choice;
+verify playback on your target phones and include captions in the supplied clip
+when speech conveys information.
+
+Orientation defaults to `vertical` (9:16, at most 340px wide). Use `horizontal`
+for 16:9 footage. The plain-text title becomes the heading and accessible player
+label. Omit the whole `video` object to hide the section. No video is configured
+in the sample clients.
 
 ## Forms with Formspree
 
@@ -161,10 +216,12 @@ The local server binds to loopback only. It rebuilds and reloads after edits to
 `scripts/` or `schema/`. A failed validation keeps the previous generated output.
 Use `PORT=3001 npm run dev` on Bash if port 3000 is occupied.
 
-The tests cover schema errors, E.164 syntax, injection escaping, hours, contrast
-selection, all-client builds, and the 150 KB budget. No browser dependency is
+The tests cover schema errors, E.164 syntax, injection escaping, hours, contrast,
+video URL validation, click-to-load players, local media copying and MIME types,
+sample-review labels and structured data, all-client builds, and the 150 KB budget.
+No browser dependency is
 installed in the project. HTML, CSS, JavaScript, robots, and sitemap bytes combined
-must remain below 150,000 bytes before compression, excluding images.
+must remain below 150,000 bytes before compression, excluding images and video.
 
 For Lighthouse, open the deployed HTTPS site in a clean Chrome profile. Open
 DevTools > Lighthouse, choose Mobile and Navigation, select Performance,
@@ -184,6 +241,9 @@ verify those workflows or full WCAG conformance.
   required fields, filename/slug matching, phone format, and hours syntax.
 - **Missing photo:** verify its local path, case, allowed extension, and alt text.
   Keep it inside `assets/`; the build rejects symlinks that escape that directory.
+- **Video rejected or missing:** use an accepted HTTPS YouTube URL with an
+  11-character ID, or an existing `.mp4`/`.webm` file inside `assets/`. Check
+  filename case. A valid YouTube ID does not guarantee a public, embeddable video.
 - **404 or missing styles:** deploy the client output folder, not the repository
   or parent `dist/`. Preview subdirectories with their trailing slash.
 - **Old content:** edit source JSON and rebuild. Dev validation failures leave

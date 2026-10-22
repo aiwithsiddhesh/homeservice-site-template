@@ -1,22 +1,21 @@
 import { readFile, writeFile, readdir, mkdir, rm, realpath } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { validate, whiteContrast } from './validate.mjs';
+import { validate, whiteContrast, videoSource } from './validate.mjs';
 import { render, escapeHTML } from './render.mjs';
 
 export const root = fileURLToPath(new URL('../', import.meta.url));
 const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-async function imageFile(client, key, outputName) {
-  const source = client.theme[key];
+async function assetFile(source, outputName, limit, label) {
   if (!source) return null;
   const base = await realpath(path.join(root, 'assets'));
   const filename = await realpath(path.join(root, source));
   const relative = path.relative(base, filename);
-  if (relative.startsWith('..') || path.isAbsolute(relative)) throw new Error(`${source}: image must remain inside assets/`);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) throw new Error(`${source}: asset must remain inside assets/`);
   const bytes = await readFile(filename);
-  if (bytes.length > 500_000) console.warn(`Warning: ${source} is over 500 KB; compress it for mobile.`);
-  return { name: `images/${outputName}${path.extname(source)}`, bytes };
+  if (bytes.length > limit) console.warn(`Warning: ${source} is over ${label}; compress it for mobile.`);
+  return { name: `${outputName}${path.extname(source)}`, bytes };
 }
 
 export async function build(selected = '--all') {
@@ -36,8 +35,11 @@ export async function build(selected = '--all') {
     const contrast = whiteContrast(client.theme.primary);
     if (contrast < 4.5) console.warn(`Warning: ${filename}: theme.primary against white is ${contrast.toFixed(2)}:1 (AA needs 4.5:1). Using black text.`);
     if (!client.siteUrl) console.warn(`Warning: ${filename}: siteUrl is empty; replace the example.com canonical before publishing.`);
-    const hero = await imageFile(client, 'heroImage', 'hero');
-    const logo = await imageFile(client, 'logoImage', 'logo');
+    if (!client.reviewsAreSamples) console.log(`Note: ${filename}: reviews are shown as real customer reviews.`);
+    const hero = await assetFile(client.theme.heroImage, 'images/hero', 500_000, '500 KB');
+    const logo = await assetFile(client.theme.logoImage, 'images/logo', 500_000, '500 KB');
+    const source = client.video ? videoSource(client.video.url) : null;
+    const video = source?.type === 'file' ? await assetFile(source.path, 'media/promo', 15_000_000, '15 MB') : null;
     const page = render(client, { hero: hero?.name, logo: logo?.name });
     const files = {
       'index.html': page.html,
@@ -48,7 +50,7 @@ export async function build(selected = '--all') {
     };
     const size = Object.values(files).reduce((total, contents) => total + Buffer.byteLength(contents), 0);
     if (size >= 150_000) throw new Error(`${filename}: generated files exceed the 150 KB budget (${size} bytes). Shorten the content.`);
-    compiled.push({ slug: client.slug, files, images: [hero, logo].filter(Boolean), size });
+    compiled.push({ slug: client.slug, files, assets: [hero, logo, video].filter(Boolean), size });
   }
   // Validate and read every input before replacing any previous output.
   for (const site of compiled) {
@@ -56,11 +58,11 @@ export async function build(selected = '--all') {
     await rm(destination, { recursive: true, force: true });
     await mkdir(destination, { recursive: true });
     for (const [name, contents] of Object.entries(site.files)) await writeFile(path.join(destination, name), contents);
-    for (const image of site.images) {
-      await mkdir(path.join(destination, 'images'), { recursive: true });
-      await writeFile(path.join(destination, image.name), image.bytes);
+    for (const asset of site.assets) {
+      await mkdir(path.dirname(path.join(destination, asset.name)), { recursive: true });
+      await writeFile(path.join(destination, asset.name), asset.bytes);
     }
-    console.log(`Built dist/${site.slug}/ — ${site.size} bytes excluding images`);
+    console.log(`Built dist/${site.slug}/ — ${site.size} bytes excluding images and video`);
   }
   return compiled.map(site => site.slug);
 }

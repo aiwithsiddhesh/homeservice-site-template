@@ -20,6 +20,7 @@
     {"title": "Seasonal cleanups", "description": "Clear leaves and overgrowth to prepare your yard for the next season.", "icon": "wrench"},
     {"title": "Small landscape upgrades", "description": "Bring neglected corners back to life with planting and border improvements.", "icon": "leaf"}
   ],
+  "reviewsAreSamples": true,
   "reviews": [
     {"name": "Andrea P.", "text": "The new garden beds made our front walk feel welcoming.", "stars": 5},
     {"name": "Marcus W.", "text": "They listened to our preference for easy-care plants.", "stars": 5},

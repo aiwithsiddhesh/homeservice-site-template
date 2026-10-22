@@ -19,6 +19,7 @@
     {"title": "Storm damage inspections", "description": "Document visible storm damage and understand your repair options.", "icon": "bolt"},
     {"title": "Gutter repairs", "description": "Keep rainwater moving away from your roofline and foundation.", "icon": "droplet"}
   ],
+  "reviewsAreSamples": true,
   "reviews": [
     {"name": "Maria L.", "text": "They explained the leak clearly and left the driveway clean.", "stars": 5},
     {"name": "James R.", "text": "The written estimate made it easy to compare our options.", "stars": 5},

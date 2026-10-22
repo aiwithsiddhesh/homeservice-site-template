@@ -1,4 +1,4 @@
-import { ink, openingHours } from './validate.mjs';
+import { ink, openingHours, videoSource } from './validate.mjs';
 
 export const escapeHTML = value => String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
 const jsonScript = value => JSON.stringify(value).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026');
@@ -12,6 +12,26 @@ const paths = {
 };
 const icon = name => `<svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${paths[name]}"/></svg>`;
 
+function promoVideo(client) {
+  if (!client.video) return '';
+  const e = escapeHTML;
+  const video = client.video;
+  const source = videoSource(video.url);
+  const orientation = video.orientation || 'vertical';
+  const player = source.type === 'youtube'
+    ? `<button class="video-facade" type="button" data-youtube-id="${source.id}" data-video-title="${e(video.title)}" aria-label="Play video: ${e(video.title)}">
+        <img src="https://i.ytimg.com/vi/${source.id}/hqdefault.jpg" width="480" height="360" loading="lazy" alt="">
+        <span class="video-play"><svg viewBox="0 0 24 24" width="64" height="64" aria-hidden="true"><path fill="currentColor" d="m8 4 12 8-12 8Z"/></svg><span>Play video</span></span>
+      </button>`
+    : `<video controls playsinline preload="metadata" aria-label="${e(video.title)}"><source src="media/promo.${source.mime.split('/')[1]}" type="${source.mime}">Your browser does not support this video. <a href="media/promo.${source.mime.split('/')[1]}">Download video</a>.</video>`;
+  return `<section class="section wrap promo-video" aria-labelledby="video-title">
+      <div class="video-copy"><h2 id="video-title">${e(video.title)}</h2><p>Get to know ${e(client.businessName)} and the work we do for local homes.</p><a class="button" href="tel:${e(client.phone)}">Call ${e(client.phoneDisplay)}</a></div>
+      <div class="video-media"><div class="video-frame video-${e(orientation)}">${player}</div>
+        ${source.type === 'youtube' ? `<noscript><p><a href="https://www.youtube.com/watch?v=${source.id}">Watch ${e(video.title)} on YouTube</a></p></noscript>` : ''}
+      </div>
+    </section>`;
+}
+
 export function render(client, images = {}) {
   const c = client;
   const e = escapeHTML;
@@ -23,15 +43,15 @@ export function render(client, images = {}) {
   const average = (c.reviews.reduce((sum, review) => sum + review.stars, 0) / c.reviews.length).toFixed(2).replace(/0$/, '');
   const email = `mailto:${encodeURIComponent(c.email)}`;
   const call = `tel:${c.phone}`;
-  const rating = `${average} out of 5 from ${c.reviews.length} reviews`;
+  const rating = `${average} out of 5 from ${c.reviews.length} ${c.reviewsAreSamples ? 'sample ' : ''}reviews`;
   const business = {
     '@context': 'https://schema.org', '@type': 'LocalBusiness', '@id': `${canonical}#business`,
     name: c.businessName, url: canonical, telephone: c.phone, email: c.email,
     address: { '@type': 'PostalAddress', addressLocality: c.city, addressRegion: c.state, addressCountry: 'US' },
     areaServed: c.serviceAreas.map(name => ({ '@type': 'City', name })),
-    openingHours: openingHours(c.hours),
-    aggregateRating: { '@type': 'AggregateRating', ratingValue: Number(average), reviewCount: c.reviews.length, bestRating: 5, worstRating: 1 }
+    openingHours: openingHours(c.hours)
   };
+  if (!c.reviewsAreSamples) business.aggregateRating = { '@type': 'AggregateRating', ratingValue: Number(average), reviewCount: c.reviews.length, bestRating: 5, worstRating: 1 };
   if (images.hero) business.image = new URL(images.hero, canonical).href;
   if (images.logo) business.logo = new URL(images.logo, canonical).href;
   const areas = c.serviceAreas.map(area => `<li>${e(area)}</li>`).join('');
@@ -88,18 +108,20 @@ export function render(client, images = {}) {
         </div>
         <div class="hero-panel">
           ${images.hero ? `<img class="hero-image" src="${images.hero}" width="960" height="720" alt="${e(c.theme.heroImageAlt)}" fetchpriority="high" decoding="async">` : `<div class="hero-art" aria-hidden="true">${icon('home')}</div>`}
-          <div class="hero-facts"><div><strong>${e(c.yearsInBusiness)}</strong><span>Years in business</span></div><div><strong>${average}<span class="small"> / 5</span></strong><span>Customer rating</span></div></div>
+          <div class="hero-facts"><div><strong>${e(c.yearsInBusiness)}</strong><span>Years in business</span></div><div><strong>${average}<span class="small"> / 5</span></strong><span>${c.reviewsAreSamples ? 'Sample rating' : 'Customer rating'}</span></div></div>
         </div>
       </div>
     </section>
+    ${promoVideo(c)}
     <section class="section wrap" aria-labelledby="services-title">
       <p class="eyebrow">01 / What we do</p><h2 id="services-title">Services for your home</h2>
       <div class="grid services">${c.services.map(service => `<article class="card"><div class="icon">${icon(service.icon)}</div><h3>${e(service.title)}</h3><p>${e(service.description)}</p></article>`).join('')}</div>
     </section>
     <section class="section reviews" aria-labelledby="reviews-title">
       <div class="wrap"><p class="eyebrow">02 / Customer experiences</p><h2 id="reviews-title">What our customers say</h2>
+        ${c.reviewsAreSamples ? '<p class="sample-note">Sample reviews for this preview. Your real customer reviews will replace them.</p>' : ''}
         <p class="rating">${e(rating)}</p>
-        <div class="grid">${c.reviews.map(review => `<figure class="card"><p class="stars"><span aria-hidden="true">${'★'.repeat(review.stars)}${'☆'.repeat(5 - review.stars)}</span><span class="sr-only">${review.stars} out of 5 stars</span></p><blockquote><p>“${e(review.text)}”</p></blockquote><figcaption>${e(review.name)}</figcaption></figure>`).join('')}</div>
+        <div class="grid">${c.reviews.map(review => `<figure class="card"><p class="stars"><span aria-hidden="true">${'★'.repeat(review.stars)}${'☆'.repeat(5 - review.stars)}</span><span class="sr-only">${review.stars} out of 5 stars</span></p><blockquote><p>“${e(review.text)}”</p></blockquote><figcaption>${e(review.name)}${c.reviewsAreSamples ? ' <span class="sample-tag">Sample</span>' : ''}</figcaption></figure>`).join('')}</div>
       </div>
     </section>
     <section class="section wrap areas" aria-labelledby="areas-title">
